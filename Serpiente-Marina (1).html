@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Serpiente Marina</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
+<style>
+/* Layout: una sola pantalla de juego a todo el ancho, con barra superior de progreso y capas de mensaje encima. Mundo submarino único (sin tema claro/oscuro). */
+:root {
+  --deep: #06345a;
+  --sea: #0b6fa4;
+  --foam: #e9fbff;
+  --coral: #ff7a59;
+  --sun: #ffd23f;
+  --kelp: #2fbf71;
+  --ink: #04263f;
+  --display: "Baloo 2", "Trebuchet MS", "Comic Sans MS", system-ui, sans-serif;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--deep);
+  color: var(--foam);
+  font-family: var(--display);
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+.hud {
+  position: fixed; left: 0; right: 0; top: 0;
+  padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  pointer-events: none;
+}
+.level-badge {
+  background: var(--sun); color: var(--ink);
+  font-weight: 800; font-size: 1.3rem; line-height: 1;
+  padding: 8px 16px 6px; border-radius: 999px;
+  box-shadow: 0 4px 0 #c99a10;
+}
+.goal { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; min-width: 0; }
+.goal svg { width: 34px; height: 22px; transition: transform .25s; }
+.goal svg.got { transform: scale(1.15); }
+.home-btn {
+  pointer-events: auto;
+  border: 0; background: rgba(255,255,255,.18); color: var(--foam);
+  width: 44px; height: 44px; border-radius: 50%;
+  font-size: 1.4rem; cursor: pointer; display: grid; place-items: center;
+}
+.home-btn:focus-visible, .big-btn:focus-visible, .lvl:focus-visible { outline: 4px solid var(--sun); outline-offset: 3px; }
+.left { display: flex; gap: 10px; align-items: center; }
+
+.overlay {
+  position: fixed; inset: 0;
+  display: grid; place-items: center;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px;
+  background: rgba(4, 38, 63, .55);
+}
+.panel {
+  width: min(460px, 100%);
+  background: linear-gradient(180deg, #1a8fc9, #0b5d8f);
+  border: 5px solid var(--foam);
+  border-radius: 34px;
+  padding: 26px 22px 24px;
+  text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  box-shadow: 0 12px 0 rgba(0,0,0,.25);
+  animation: pop .45s cubic-bezier(.2,1.6,.4,1);
+}
+@keyframes pop { from { transform: scale(.7); } to { transform: scale(1); } }
+.panel h1, .panel h2 { margin: 0; line-height: 1; text-wrap: balance; }
+.panel h1 { font-size: clamp(2.2rem, 9vw, 3.2rem); font-weight: 800; color: var(--sun); text-shadow: 0 4px 0 var(--ink); }
+.panel h2 { font-size: clamp(2rem, 8vw, 2.8rem); font-weight: 800; color: var(--sun); text-shadow: 0 3px 0 var(--ink); }
+.panel p { margin: 0; font-size: 1.25rem; font-weight: 600; }
+.big-btn {
+  border: 0; cursor: pointer;
+  background: var(--coral); color: #fff;
+  font: 800 1.9rem/1 var(--display);
+  padding: 18px 44px 14px; border-radius: 999px;
+  box-shadow: 0 7px 0 #b84a2f;
+  transition: transform .1s;
+}
+.big-btn:active { transform: translateY(5px); box-shadow: 0 2px 0 #b84a2f; }
+.levels { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; width: 100%; max-width: 300px; }
+.lvl {
+  border: 0; cursor: pointer; aspect-ratio: 1; max-width: 100%;
+  border-radius: 50%; font: 800 1.5rem/1 var(--display);
+  background: var(--foam); color: var(--sea);
+  box-shadow: 0 4px 0 rgba(0,0,0,.25);
+}
+.lvl.done { background: var(--sun); color: var(--ink); }
+.stars { font-size: 2.6rem; letter-spacing: 6px; color: var(--sun); line-height: 1; }
+.hint { font-size: 1rem !important; opacity: .85; }
+@media (prefers-reduced-motion: reduce) { .panel { animation: none; } }
+</style>
+</head>
+<body>
+
+<canvas id="game" aria-label="Juego: la serpiente marina come peces"></canvas>
+
+<div class="hud" id="hud" hidden>
+  <div class="left">
+    <button class="home-btn" id="homeBtn" aria-label="Volver al inicio">⌂</button>
+    <div class="level-badge" id="levelBadge">Nivel 1</div>
+  </div>
+  <div class="goal" id="goal" aria-label="Peces por comer"></div>
+</div>
+
+<div class="overlay" id="startScreen">
+  <div class="panel">
+    <h1>Serpiente Marina</h1>
+    <p>¡Toca el agua y la serpiente nadará hacia allá!<br>Come todos los peces.</p>
+    <button class="big-btn" id="playBtn">¡Jugar!</button>
+    <p class="hint">O elige un nivel:</p>
+    <div class="levels" id="levelPicker"></div>
+  </div>
+</div>
+
+<div class="overlay" id="winScreen" hidden>
+  <div class="panel">
+    <div class="stars" aria-hidden="true">★★★</div>
+    <h2 id="winTitle">¡Muy bien!</h2>
+    <p id="winText">Comiste todos los peces.</p>
+    <button class="big-btn" id="nextBtn">Siguiente</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const cv = document.getElementById('game');
+  const ctx = cv.getContext('2d');
+  let W = 0, H = 0, DPR = 1;
+
+  // ---------- Niveles ----------
+  // goal: peces por comer · onScreen: peces a la vez · fishSpeed: qué tan rápido nadan
+  const LEVELS = [
+    { goal: 3,  onScreen: 3, fishSpeed: 0,    color: '#ff8c1a', stripe: '#ffffff', name: 'peces payaso' },
+    { goal: 4,  onScreen: 3, fishSpeed: 0,    color: '#ffd23f', stripe: '#ff9f1c', name: 'peces amarillos' },
+    { goal: 5,  onScreen: 3, fishSpeed: 0.25, color: '#4cc9f0', stripe: '#1d6fd1', name: 'peces azules' },
+    { goal: 6,  onScreen: 4, fishSpeed: 0.35, color: '#ff7eb6', stripe: '#d63384', name: 'peces rosados' },
+    { goal: 7,  onScreen: 4, fishSpeed: 0.45, color: '#7bd389', stripe: '#2b9348', name: 'peces verdes' },
+    { goal: 8,  onScreen: 4, fishSpeed: 0.55, color: '#b28dff', stripe: '#6f42c1', name: 'peces morados' },
+    { goal: 9,  onScreen: 5, fishSpeed: 0.65, color: '#ff5d5d', stripe: '#ffd23f', name: 'peces rojos' },
+    { goal: 10, onScreen: 5, fishSpeed: 0.75, color: 'rainbow', stripe: '#ffffff', name: 'peces arcoíris' },
+  ];
+  const RAINBOW = ['#ff5d5d', '#ff9f1c', '#ffd23f', '#7bd389', '#4cc9f0', '#b28dff'];
+
+  let levelIdx = 0, eaten = 0, playing = false;
+  let completed = new Set();
+  try { completed = new Set(JSON.parse(localStorage.getItem('sm-done') || '[]')); } catch (e) {}
+  const saveDone = () => { try { localStorage.setItem('sm-done', JSON.stringify([...completed])); } catch (e) {} };
+
+  // ---------- Sonido (se activa al tocar "Jugar") ----------
+  let ac = null;
+  function audio() { if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } if (ac && ac.state === 'suspended') ac.resume(); }
+  function tone(freq, dur, type = 'sine', vol = .15, slide = 0) {
+    if (!ac) return;
+    const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(freq * slide, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g).connect(ac.destination); o.start(t); o.stop(t + dur);
+  }
+  const sndEat = () => { tone(520, .18, 'sine', .2, 2.2); setTimeout(() => tone(880, .12, 'triangle', .1), 70); };
+  const sndWin = () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, .3, 'triangle', .15), i * 130));
+
+  // ---------- Serpiente ----------
+  const snake = { x: 0, y: 0, angle: 0, segs: [], speed: 2.6 };
+  const SEG_GAP = 11;
+  let target = null, keyDir = null;
+
+  function resetSnake() {
+    snake.x = W * 0.25; snake.y = H * 0.55; snake.angle = 0;
+    snake.segs = [];
+    for (let i = 0; i < 6; i++) snake.segs.push({ x: snake.x - (i + 1) * SEG_GAP, y: snake.y });
+    target = null; keyDir = null;
+  }
+  const unit = () => Math.max(0.8, Math.min(W, H) / 600);
+
+  function updateSnake(dt) {
+    const u = unit();
+    let desired = null;
+    if (keyDir) desired = keyDir;
+    else if (target) {
+      const dx = target.x - snake.x, dy = target.y - snake.y;
+      if (Math.hypot(dx, dy) > 18 * u) desired = Math.atan2(dy, dx);
+    }
+    if (desired !== null) {
+      let diff = desired - snake.angle;
+      diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+      const turn = 0.09 * dt;
+      snake.angle += Math.max(-turn, Math.min(turn, diff));
+    }
+    const sp = snake.speed * u * dt;
+    snake.x += Math.cos(snake.angle) * sp;
+    snake.y += Math.sin(snake.angle) * sp;
+
+    // Rebote suave en los bordes (nunca se pierde)
+    const m = 26 * u, top = 70 * u;
+    if (snake.x < m) { snake.x = m; snake.angle = Math.PI - snake.angle; }
+    if (snake.x > W - m) { snake.x = W - m; snake.angle = Math.PI - snake.angle; }
+    if (snake.y < top) { snake.y = top; snake.angle = -snake.angle; }
+    if (snake.y > H - m) { snake.y = H - m; snake.angle = -snake.angle; }
+
+    // Los segmentos siguen al anterior (la cola se puede cruzar sin problema)
+    let px = snake.x, py = snake.y;
+    const gap = SEG_GAP * u;
+    for (const s of snake.segs) {
+      const dx = s.x - px, dy = s.y - py, d = Math.hypot(dx, dy) || 1;
+      if (d > gap) { s.x = px + dx / d * gap; s.y = py + dy / d * gap; }
+      px = s.x; py = s.y;
+    }
+  }
+
+  function grow(n) {
+    for (let i = 0; i < n; i++) {
+      const last = snake.segs[snake.segs.length - 1];
+      snake.segs.push({ x: last.x, y: last.y });
+    }
+  }
+
+  function drawSnake(t) {
+    const u = unit(), n = snake.segs.length;
+    for (let i = n - 1; i >= 0; i--) {
+      const s = snake.segs[i];
+      const r = (15 - 7 * (i / Math.max(n, 12))) * u;
+      ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = (i % 3 === 1) ? '#ffd23f' : '#16a086';
+      ctx.fill();
+      ctx.lineWidth = 2.5 * u; ctx.strokeStyle = '#0a5c4d'; ctx.stroke();
+    }
+    // Cabeza
+    const hr = 20 * u, a = snake.angle;
+    ctx.save(); ctx.translate(snake.x, snake.y); ctx.rotate(a);
+    ctx.beginPath(); ctx.ellipse(0, 0, hr * 1.15, hr, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#1bbf9f'; ctx.fill();
+    ctx.lineWidth = 3 * u; ctx.strokeStyle = '#0a5c4d'; ctx.stroke();
+    // Mejillas
+    ctx.fillStyle = 'rgba(255,122,89,.55)';
+    ctx.beginPath(); ctx.arc(hr * .35, hr * .62, hr * .2, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(hr * .35, -hr * .62, hr * .2, 0, 7); ctx.fill();
+    // Ojos
+    const blink = (Math.floor(t / 2600) % 4 === 0 && (t % 2600) < 140);
+    for (const sy of [-1, 1]) {
+      ctx.beginPath(); ctx.arc(hr * .35, sy * hr * .38, hr * .3, 0, 7);
+      ctx.fillStyle = '#fff'; ctx.fill();
+      if (blink) {
+        ctx.fillStyle = '#04263f'; ctx.fillRect(hr * .1, sy * hr * .38 - 1.5 * u, hr * .5, 3 * u);
+      } else {
+        ctx.beginPath(); ctx.arc(hr * .45, sy * hr * .38, hr * .15, 0, 7);
+        ctx.fillStyle = '#04263f'; ctx.fill();
+        ctx.beginPath(); ctx.arc(hr * .5, sy * hr * .38 - hr * .06, hr * .05, 0, 7);
+        ctx.fillStyle = '#fff'; ctx.fill();
+      }
+    }
+    // Sonrisa
+    ctx.beginPath(); ctx.arc(hr * .7, 0, hr * .28, -1.1, 1.1);
+    ctx.lineWidth = 2.5 * u; ctx.strokeStyle = '#04263f'; ctx.stroke();
+    ctx.restore();
+  }
+
+  // ---------- Peces ----------
+  let fish = [], spawned = 0;
+  function fishColor(i) { const L = LEVELS[levelIdx]; return L.color === 'rainbow' ? RAINBOW[i % RAINBOW.length] : L.color; }
+  function spawnFish() {
+    const L = LEVELS[levelIdx], u = unit();
+    let x, y, tries = 0;
+    do {
+      x = 60 * u + Math.random() * (W - 120 * u);
+      y = 110 * u + Math.random() * (H - 200 * u);
+      tries++;
+    } while (tries < 30 && Math.hypot(x - snake.x, y - snake.y) < 170 * u);
+    const dir = Math.random() < .5 ? -1 : 1;
+    fish.push({
+      x, y, dir, born: performance.now(),
+      vx: dir * L.fishSpeed * (0.7 + Math.random() * .6),
+      vy: (Math.random() - .5) * L.fishSpeed * .5,
+      size: (22 + Math.random() * 6) * u,
+      color: fishColor(spawned), phase: Math.random() * 6,
+    });
+    spawned++;
+  }
+  function updateFish(dt) {
+    const u = unit();
+    for (const f of fish) {
+      f.x += f.vx * u * dt; f.y += f.vy * u * dt;
+      if (f.x < 40 * u || f.x > W - 40 * u) { f.vx *= -1; f.x = Math.max(40 * u, Math.min(W - 40 * u, f.x)); }
+      if (f.y < 100 * u || f.y > H - 70 * u) { f.vy *= -1; f.y = Math.max(100 * u, Math.min(H - 70 * u, f.y)); }
+      if (f.vx !== 0) f.dir = f.vx < 0 ? -1 : 1;
+    }
+  }
+  function drawFish(f, t) {
+    const L = LEVELS[levelIdx];
+    const age = Math.min(1, (t - f.born) / 400);
+    const s = f.size * (0.4 + 0.6 * age);
+    const wig = Math.sin(t / 180 + f.phase);
+    ctx.save();
+    ctx.translate(f.x, f.y + Math.sin(t / 600 + f.phase) * 4);
+    ctx.scale(f.dir, 1);
+    // Cola
+    ctx.beginPath();
+    ctx.moveTo(-s * .8, 0);
+    ctx.lineTo(-s * 1.5, -s * (.6 + wig * .12));
+    ctx.lineTo(-s * 1.5, s * (.6 - wig * .12));
+    ctx.closePath(); ctx.fillStyle = f.color; ctx.fill();
+    ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(4,38,63,.6)'; ctx.stroke();
+    // Cuerpo
+    ctx.beginPath(); ctx.ellipse(0, 0, s, s * .68, 0, 0, 7);
+    ctx.fillStyle = f.color; ctx.fill(); ctx.stroke();
+    // Franjas
+    ctx.save(); ctx.clip();
+    ctx.fillStyle = L.stripe; ctx.globalAlpha = .85;
+    ctx.fillRect(-s * .25, -s, s * .22, s * 2);
+    ctx.fillRect(-s * .75, -s, s * .16, s * 2);
+    ctx.restore();
+    // Aleta
+    ctx.beginPath(); ctx.ellipse(-s * .05, s * .15, s * .28, s * .14, .5 + wig * .2, 0, 7);
+    ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.fill();
+    // Ojo
+    ctx.beginPath(); ctx.arc(s * .5, -s * .15, s * .2, 0, 7); ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.beginPath(); ctx.arc(s * .56, -s * .15, s * .1, 0, 7); ctx.fillStyle = '#04263f'; ctx.fill();
+    // Boca
+    ctx.beginPath(); ctx.arc(s * .82, s * .12, s * .1, .2, 2.4); ctx.lineWidth = 2; ctx.strokeStyle = '#04263f'; ctx.stroke();
+    ctx.restore();
+  }
+
+  // ---------- Decoración del océano ----------
+  let bubbles = [], kelp = [], pops = [], rocks = [];
+  function buildScene() {
+    bubbles = Array.from({ length: 28 }, () => ({ x: Math.random() * W, y: Math.random() * H, r: 2 + Math.random() * 6, v: .3 + Math.random() * .6 }));
+    const n = Math.max(5, Math.round(W / 110));
+    kelp = Array.from({ length: n }, (_, i) => ({ x: (i + .3 + Math.random() * .4) * (W / n), h: 70 + Math.random() * 110, ph: Math.random() * 6, c: Math.random() < .5 ? '#2fbf71' : '#1f9e5a' }));
+    rocks = Array.from({ length: Math.round(W / 160) + 2 }, () => ({ x: Math.random() * W, r: 18 + Math.random() * 26, c: Math.random() < .5 ? '#ff9e80' : '#f7c59f' }));
+  }
+  function drawBackground(t) {
+    const depth = levelIdx / 7;
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, mix('#38c3f0', '#1a7fc0', depth));
+    g.addColorStop(.6, mix('#0e86c6', '#0a4f8a', depth));
+    g.addColorStop(1, mix('#0a5f98', '#06345a', depth));
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    // Rayos de luz
+    ctx.save(); ctx.globalAlpha = .07;
+    ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < 5; i++) {
+      const x = (i / 5) * W + Math.sin(t / 3000 + i) * 40;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 70, 0); ctx.lineTo(x + 220, H); ctx.lineTo(x + 100, H); ctx.fill();
+    }
+    ctx.restore();
+    // Arena
+    const sandY = H - 34;
+    ctx.fillStyle = '#f2d091';
+    ctx.beginPath(); ctx.moveTo(0, H);
+    for (let x = 0; x <= W; x += 20) ctx.lineTo(x, sandY + Math.sin(x / 60) * 8);
+    ctx.lineTo(W, H); ctx.fill();
+    for (const r of rocks) { ctx.beginPath(); ctx.arc(r.x, sandY + 14, r.r, Math.PI, 0); ctx.fillStyle = r.c; ctx.fill(); }
+    // Algas
+    for (const k of kelp) {
+      ctx.beginPath(); ctx.moveTo(k.x, sandY + 6);
+      const segs = 6;
+      for (let i = 1; i <= segs; i++) {
+        const yy = sandY + 6 - (k.h / segs) * i;
+        const xx = k.x + Math.sin(t / 900 + k.ph + i * .6) * (i * 3);
+        ctx.lineTo(xx, yy);
+      }
+      ctx.lineWidth = 12; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = k.c; ctx.stroke();
+    }
+    // Burbujas
+    ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1.5;
+    for (const b of bubbles) {
+      b.y -= b.v; b.x += Math.sin(t / 700 + b.r) * .2;
+      if (b.y < -10) { b.y = H + 10; b.x = Math.random() * W; }
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.stroke();
+    }
+  }
+  function mix(a, b, k) {
+    const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+    const c = [16, 8, 0].map(s => Math.round(((pa >> s) & 255) * (1 - k) + ((pb >> s) & 255) * k));
+    return `rgb(${c[0]},${c[1]},${c[2]})`;
+  }
+  function burst(x, y, color) {
+    for (let i = 0; i < 14; i++) {
+      const a = Math.random() * 7, v = 1 + Math.random() * 3;
+      pops.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 1, r: 3 + Math.random() * 6, life: 1, c: i % 2 ? color : '#ffffff' });
+    }
+  }
+  function drawPops(dt) {
+    for (const p of pops) {
+      p.x += p.vx * dt; p.y += p.vy * dt; p.vy -= .03 * dt; p.life -= .025 * dt;
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fillStyle = p.c; ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    pops = pops.filter(p => p.life > 0);
+  }
+  function drawTargetRing(t) {
+    if (!target || keyDir) return;
+    const r = 14 + Math.sin(t / 150) * 3;
+    ctx.beginPath(); ctx.arc(target.x, target.y, r, 0, 7);
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.stroke();
+  }
+
+  // ---------- Marcador de peces ----------
+  const goalEl = document.getElementById('goal');
+  function fishIcon(color, filled) {
+    const fill = filled ? color : 'rgba(255,255,255,.18)';
+    const stroke = filled ? '#04263f' : 'rgba(255,255,255,.6)';
+    return `<svg viewBox="0 0 34 22" aria-hidden="true"><path d="M2 3 L10 11 L2 19 Z" fill="${fill}" stroke="${stroke}" stroke-width="1.6" stroke-linejoin="round"/><ellipse cx="20" cy="11" rx="12" ry="8" fill="${fill}" stroke="${stroke}" stroke-width="1.6"/>${filled ? '<circle cx="25" cy="9" r="2" fill="#04263f"/>' : ''}</svg>`;
+  }
+  function renderGoal() {
+    const L = LEVELS[levelIdx];
+    goalEl.innerHTML = Array.from({ length: L.goal }, (_, i) => fishIcon(L.color === 'rainbow' ? RAINBOW[i % 6] : L.color, i < eaten)).join('');
+    goalEl.setAttribute('aria-label', `${eaten} de ${L.goal} peces`);
+    if (eaten > 0) goalEl.children[eaten - 1].classList.add('got');
+  }
+
+  // ---------- Flujo del juego ----------
+  const startScreen = document.getElementById('startScreen');
+  const winScreen = document.getElementById('winScreen');
+  const hud = document.getElementById('hud');
+  const badge = document.getElementById('levelBadge');
+
+  function startLevel(i) {
+    audio();
+    levelIdx = i; eaten = 0; spawned = 0; fish = []; pops = [];
+    resetSnake();
+    const L = LEVELS[i];
+    for (let k = 0; k < Math.min(L.onScreen, L.goal); k++) spawnFish();
+    badge.textContent = `Nivel ${i + 1}`;
+    renderGoal();
+    startScreen.hidden = true; winScreen.hidden = true; hud.hidden = false;
+    playing = true;
+  }
+
+  function checkEat() {
+    const u = unit(), L = LEVELS[levelIdx];
+    for (let i = fish.length - 1; i >= 0; i--) {
+      const f = fish[i];
+      if (Math.hypot(f.x - snake.x, f.y - snake.y) < f.size + 18 * u) {
+        burst(f.x, f.y, f.color);
+        fish.splice(i, 1);
+        eaten++; grow(3); sndEat(); renderGoal();
+        if (spawned < L.goal) setTimeout(() => { if (playing) spawnFish(); }, 500);
+        if (eaten >= L.goal) levelDone();
+      }
+    }
+  }
+
+  function levelDone() {
+    playing = false;
+    completed.add(levelIdx); saveDone(); buildPicker();
+    sndWin();
+    for (let i = 0; i < 6; i++) setTimeout(() => burst(Math.random() * W, Math.random() * H * .7 + 80, RAINBOW[i]), i * 120);
+    const last = levelIdx === LEVELS.length - 1;
+    document.getElementById('winTitle').textContent = last ? '¡Ganaste todo!' : '¡Muy bien!';
+    document.getElementById('winText').textContent = last
+      ? '¡Te comiste todos los peces del océano!'
+      : `Te comiste ${LEVELS[levelIdx].goal} ${LEVELS[levelIdx].name}.`;
+    document.getElementById('nextBtn').textContent = last ? 'Jugar otra vez' : 'Siguiente';
+    setTimeout(() => { winScreen.hidden = false; }, 900);
+  }
+
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    startLevel(levelIdx === LEVELS.length - 1 ? 0 : levelIdx + 1);
+  });
+  document.getElementById('playBtn').addEventListener('click', () => {
+    let next = 0; while (completed.has(next) && next < LEVELS.length - 1) next++;
+    startLevel(next);
+  });
+  document.getElementById('homeBtn').addEventListener('click', () => {
+    playing = false; hud.hidden = true; winScreen.hidden = true; startScreen.hidden = false;
+  });
+
+  function buildPicker() {
+    const box = document.getElementById('levelPicker');
+    box.innerHTML = '';
+    LEVELS.forEach((_, i) => {
+      const b = document.createElement('button');
+      b.className = 'lvl' + (completed.has(i) ? ' done' : '');
+      b.id = 'lvl' + (i + 1);
+      b.textContent = i + 1;
+      b.setAttribute('aria-label', `Nivel ${i + 1}`);
+      b.addEventListener('click', () => startLevel(i));
+      box.appendChild(b);
+    });
+  }
+
+  // ---------- Controles ----------
+  function setTarget(e) { const r = cv.getBoundingClientRect(); target = { x: e.clientX - r.left, y: e.clientY - r.top }; keyDir = null; }
+  cv.addEventListener('pointerdown', e => { setTarget(e); });
+  cv.addEventListener('pointermove', e => { if (e.pointerType === 'mouse' || e.buttons) setTarget(e); });
+  const KEYS = { ArrowRight: 0, ArrowDown: Math.PI / 2, ArrowLeft: Math.PI, ArrowUp: -Math.PI / 2 };
+  window.addEventListener('keydown', e => { if (e.key in KEYS && playing) { keyDir = KEYS[e.key]; target = null; e.preventDefault(); } });
+
+  // ---------- Bucle ----------
+  function resize() {
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = cv.clientWidth; H = cv.clientHeight;
+    cv.width = W * DPR; cv.height = H * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    buildScene();
+    if (!snake.segs.length) resetSnake();
+    snake.x = Math.min(snake.x, W - 30); snake.y = Math.min(snake.y, H - 30);
+  }
+  window.addEventListener('resize', resize);
+
+  let last = performance.now();
+  function frame(t) {
+    const dt = Math.min(3, (t - last) / 16.67); last = t;
+    drawBackground(t);
+    if (playing) { updateSnake(dt); updateFish(dt); checkEat(); }
+    else if (startScreen.hidden === false) {
+      // En el menú la serpiente nada sola
+      target = { x: W / 2 + Math.cos(t / 1500) * W * .3, y: H / 2 + Math.sin(t / 1100) * H * .25 };
+      updateSnake(dt);
+    }
+    for (const f of fish) drawFish(f, t);
+    drawTargetRing(t);
+    drawSnake(t);
+    drawPops(dt);
+    requestAnimationFrame(frame);
+  }
+
+  resize(); buildPicker();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
