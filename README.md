@@ -15,6 +15,7 @@ Todos los juegos funcionan directo en el navegador: **no hay que instalar nada**
 | 🚀 **[Among Us vs Zombies](among-us-vs-zombies.html)** | Pon a los tripulantes en el pasto para defenderte de las oleadas de zombies. | Pantalla táctil o mouse |
 | 🌌 **[Laberinto espacial](laberinto-espacial.html)** | Recorre un laberinto tranquilo, sin peligros, hasta encender todas las casillas y abrir la salida. | Teclado o botones en pantalla |
 | 🟡 **[Pacman Fácil](pacman-facil.html)** | Una versión sencilla de Pacman: cómete todos los puntitos para ganar. | Teclado o botones en pantalla |
+| 📖 **[¡Aprendo a Leer!](aprendo-a-leer%20(1).html)** | 5 juegos para aprender las letras, las sílabas y a armar y escribir palabras. ¡El juego habla! | Pantalla táctil o mouse |
 
 ---
 
@@ -56,6 +57,22 @@ Un laberinto tranquilo, sin enemigos ni apuros. Las casillas se iluminan al pisa
 
 Mueve a Pacman con las **flechas** del teclado o con los botones en pantalla y cómete todos los puntitos ⭐ para ganar.
 
+## 📖 ¡Aprendo a Leer!
+
+Un juego para dar los primeros pasos en la lectura. Una voz lee en voz alta las letras y las palabras, así que hay que **subir el volumen** 🔊. Desde el menú se elige entre 5 juegos:
+
+| Juego | Qué se hace |
+|---|---|
+| 🔤 **Las letras** | Recorre el abecedario (con la Ñ): cada letra viene con un dibujo y una palabra, como *A de abeja* 🐝. |
+| 👂 **¿Cuál es?** | Mira el dibujo y toca la letra con la que empieza. |
+| 🧩 **Sílabas** | Toca cada pedacito de la palabra para escucharlo y después encuentra la sílaba que te piden. |
+| 🏗️ **Arma la palabra** | Ordena las letras para formar la palabra del dibujo. Si te cuesta, usa el botón **Ayuda** 💡. |
+| ✏️ **A escribir** | Repasa la letra con el dedo sobre la pantalla. |
+
+Cada respuesta correcta gana una estrella ⭐, y las estrellas se guardan para la próxima vez. Funciona sin internet.
+
+> En Android se puede abrir con Chrome y tocar **⋮ → Agregar a pantalla principal** para tenerlo como una app.
+
 ---
 
 ## ▶️ Cómo jugar
@@ -82,6 +99,7 @@ https://thorencio.github.io/juegos-de-mi-hijo/pacman-facil.html
 
 - HTML, CSS y JavaScript, cada juego en un solo archivo
 - [Three.js](https://threejs.org/) para el mundo 3D de Isla Globazo
+- La voz del navegador (Web Speech API) para que ¡Aprendo a Leer! pueda hablar
 - Muchas ideas de mi hijo 💡 y ayuda de la IA 🤖
 
 ---
