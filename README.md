@@ -16,6 +16,7 @@ Todos los juegos funcionan directo en el navegador: **no hay que instalar nada**
 | 🌌 **[Laberinto espacial](laberinto-espacial.html)** | Recorre un laberinto tranquilo, sin peligros, hasta encender todas las casillas y abrir la salida. | Teclado o botones en pantalla |
 | 🟡 **[Pacman Fácil](pacman-facil.html)** | Una versión sencilla de Pacman: cómete todos los puntitos para ganar. | Teclado o botones en pantalla |
 | 📖 **[¡Aprendo a Leer!](aprendo-a-leer%20(1).html)** | 5 juegos para aprender las letras, las sílabas y a armar y escribir palabras. ¡El juego habla! | Pantalla táctil o mouse |
+| ✨ **[Cazapixies](cazapixies.html)** | Realidad aumentada y virtual: busca pixies a tu alrededor con el celular y atrápalos con el orbe lunar. 3 niveles. | Celular (cámara y giroscopio), visor tipo Cardboard o pantalla táctil |
 
 ---
 
@@ -73,6 +74,25 @@ Cada respuesta correcta gana una estrella ⭐, y las estrellas se guardan para l
 
 > En Android se puede abrir con Chrome y tocar **⋮ → Agregar a pantalla principal** para tenerlo como una app.
 
+## ✨ Cazapixies
+
+Los pixies se escaparon al bosque. Mira a tu alrededor con el celular, encuéntralos y **desliza el orbe lunar hacia arriba** para atraparlos. Si le das a un pixie, el orbe se tambalea hasta 3 veces: ¡a veces lo atrapa y a veces se escapa!
+
+Hay dos modos:
+
+- 📷 **Realidad aumentada:** usa la cámara trasera y el giroscopio. Los pixies vuelan alrededor tuyo y hay que girar el celular para encontrarlos. Una flecha apunta al pixie más cercano.
+- 🥽 **Realidad virtual:** la pantalla se divide en dos para usarla con un visor tipo Cardboard, dentro de un bosque encantado de noche. Apunta con el círculo del centro moviendo la cabeza y toca la pantalla para lanzar.
+
+| Nivel | Pixies que atrapar | Tiempo | Orbes | Cómo son los pixies |
+|---|---|---|---|---|
+| Fácil | 5 | 120 s | 15 | Lentos, grandes y con ayuda para apuntar |
+| Medio | 8 | 100 s | 20 | Más rápidos y a veces esquivan |
+| Difícil | 12 | 90 s | 26 | Pequeños, esquivan seguido y se teletransportan |
+
+Hay 5 tipos de pixies: Chispa, Bruma, Lumen, Ortiga y Escarcha (el más raro, ¡vale más puntos!). Al final se ganan hasta 3 estrellas ⭐ y se guarda el récord de cada nivel.
+
+> La cámara solo funciona si el juego se abre desde una dirección **https**, por ejemplo con GitHub Pages (ver más abajo). Al tocar **¡A cazar!** el celular pide permiso para usar la cámara y el movimiento. Si no hay cámara ni giroscopio, se juega igual en el bosque virtual arrastrando el dedo para mirar.
+
 ---
 
 ## ▶️ Cómo jugar
@@ -100,6 +120,7 @@ https://thorencio.github.io/juegos-de-mi-hijo/pacman-facil.html
 - HTML, CSS y JavaScript, cada juego en un solo archivo
 - [Three.js](https://threejs.org/) para el mundo 3D de Isla Globazo
 - La voz del navegador (Web Speech API) para que ¡Aprendo a Leer! pueda hablar
+- La cámara y el giroscopio del celular para la realidad aumentada de Cazapixies
 - Muchas ideas de mi hijo 💡 y ayuda de la IA 🤖
 
 ---
